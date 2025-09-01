@@ -12,7 +12,7 @@
  */
 
 const SUDOKU_SIZE = 9
-const SUDOKU_SUBGRID_SIZE = 9
+const SUDOKU_SUBGRID_SIZE = 3
 const EMPTY_CELL = 0
 const VALID_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -44,114 +44,58 @@ function getCoordinateFromPosition(position) {
     return [row, column]
 }
 
-function checkColValidity(gridIndex, sudokuPuzzle) {
-    const [, c] = getRowColFromGridIndex(gridIndex)
+function checkColValidity(colPos, numToCheck, sudokuPuzzle) {
+    const col = sudokuPuzzle.map((row) => row[colPos])
 
-    const col = sudokuPuzzle.map((row) => row[c])
-
-    const checked = new Map()
-
-    for (let i = 0; i < col.length; i++) {
-        const value = col[i]
-
-        if (value === EMPTY_CELL) {
-            continue
-        }
-
-        // if (!VALID_NUMBERS.includes(value)) {
-        //     return false
-        // }
-
-        if (checked.has(value)) {
-            return false
-        }
-
-        checked.set(value, true)
-    }
-
-    return true
+    return !col.includes(numToCheck)
 }
 
-function checkRowValidity(gridIndex, sudokuPuzzle) {
-    const [r] = getRowColFromGridIndex(gridIndex)
+function checkRowValidity(rowPos, numToCheck, sudokuPuzzle) {
+    const row = sudokuPuzzle[rowPos]
 
-    const row = sudokuPuzzle[r]
-
-    const checked = new Map()
-
-    for (let i = 0; i < row.length; i++) {
-        const value = row[i]
-
-        if (value === EMPTY_CELL) {
-            continue
-        }
-
-        // if (!VALID_NUMBERS.includes(value)) {
-        //     return false
-        // }
-
-        if (checked.has(value)) {
-            return false
-        }
-
-        checked.set(value, true)
-    }
-
-    return true
+    return !row.includes(numToCheck)
 }
 
 // return false if have duplicates, true otherwise
-function checkSubGridValidity(gridIndex, sudokuPuzzle) {
+function checkSubGridValidity(gridIndex, numToCheck, sudokuPuzzle) {
     const [row, col] = getRowColFromGridIndex(gridIndex)
-
-    const checked = new Map()
 
     for (let x = col; x < col + SUDOKU_SUBGRID_SIZE; x++) {
         for (let y = row; y < row + SUDOKU_SUBGRID_SIZE; y++) {
             const value = sudokuPuzzle[y][x]
 
-            if (value === EMPTY_CELL) {
-                continue
-            }
-
-            // if (!VALID_NUMBERS.includes(value)) {
-            //     return false
-            // }
-
-            if (checked.has(value)) {
+            if (value === numToCheck) {
                 return false
             }
-
-            checked.set(value, true)
         }
     }
 
     return true
 }
 
-function checkCellValidity(rowPos, colPos, sudokuPuzzle) {
-    if (sudokuPuzzle[rowPos][colPos] === EMPTY_CELL) {
-        return true
-    }
+function checkCellValidity(rowPos, colPos, numToCheck, sudokuPuzzle) {
+    // if (sudokuPuzzle[rowPos][colPos] === EMPTY_CELL) {
+    //     return true
+    // }
 
-    const coordinateAsString = getCoordinateAsString(rowPos, colPos)
-    if (originalValues.has(coordinateAsString)) {
-        return true
-    }
+    // const coordinateAsString = getCoordinateAsString(rowPos, colPos)
+    // if (originalValues.has(coordinateAsString)) {
+    //     return true
+    // }
 
     const gridIndex = getGridIndexFromCoordinate(rowPos, colPos)
 
-    const colIsValid = checkColValidity(gridIndex, sudokuPuzzle)
+    const colIsValid = checkColValidity(colPos, numToCheck, sudokuPuzzle)
     if (!colIsValid) {
         return false
     }
 
-    const rowIsValid = checkRowValidity(gridIndex, sudokuPuzzle)
+    const rowIsValid = checkRowValidity(rowPos, numToCheck, sudokuPuzzle)
     if (!rowIsValid) {
         return false
     }
 
-    const gridIsValid = checkSubGridValidity(gridIndex, sudokuPuzzle)
+    const gridIsValid = checkSubGridValidity(gridIndex, numToCheck, sudokuPuzzle)
     if (!gridIsValid) {
         return false
     }
@@ -162,29 +106,31 @@ function checkCellValidity(rowPos, colPos, sudokuPuzzle) {
 function backtrack(position, cellsPlaced, numOfCellsToPlace, sudokuPuzzle) {
     if (cellsPlaced === numOfCellsToPlace) {
         solution = sudokuPuzzle.map((row) => [...row])
-        return
+        return true
     }
 
     const [row, col] = getCoordinateFromPosition(position)
+    const coordinateAsString = getCoordinateAsString(row, col)
+
+    // don't modify original values
+    if (originalValues.has(coordinateAsString)) {
+        return backtrack(position + 1, cellsPlaced, numOfCellsToPlace, sudokuPuzzle)
+    }
 
     for (const number of VALID_NUMBERS) {
-        const coordinateAsString = getCoordinateAsString(row, col)
-
-        // don't modify original values
-        if (originalValues.has(coordinateAsString)) {
-            backtrack(position + 1, cellsPlaced + 1, numOfCellsToPlace, sudokuPuzzle.map((row) => [...row]))
-            return
-        }
-
-        sudokuPuzzle[row][col] = number
-
-        const cellIsValid = checkCellValidity(row, col, sudokuPuzzle.map((row) => [...row]))
+        const cellIsValid = checkCellValidity(row, col, number, sudokuPuzzle)
         if (cellIsValid) {
-            backtrack(position + 1, cellsPlaced + 1, numOfCellsToPlace, sudokuPuzzle.map((row) => [...row]))
+            sudokuPuzzle[row][col] = number
+
+            if (backtrack(position + 1, cellsPlaced + 1, numOfCellsToPlace, sudokuPuzzle)) {
+                return true
+            }
         }
 
         sudokuPuzzle[row][col] = EMPTY_CELL
     }
+
+    return false
 }
 
 async function getSudokuPuzzle(filepath) {
