@@ -19,10 +19,7 @@ const VALID_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 const originalValues = new Map()
 let solution = []
 
-function getCoordinateAsString(rowPos, colPos) {
-    return `${colPos},${rowPos}`
-}
-
+// returns the index of the 3 by 3 subgrid where the coordinate belongs to.
 function getGridIndexFromCoordinate(rowPos, colPos) {
     const row = Math.floor(rowPos / SUDOKU_SUBGRID_SIZE)
     const column = Math.floor(colPos / SUDOKU_SUBGRID_SIZE)
@@ -30,6 +27,11 @@ function getGridIndexFromCoordinate(rowPos, colPos) {
     return row * SUDOKU_SUBGRID_SIZE + column
 }
 
+function getCoordinateAsString(rowPos, colPos) {
+    return `${colPos},${rowPos}`
+}
+
+// get the coordinate of the top left cell of a particular 3 by 3 subgrid
 function getRowColFromGridIndex(gridIndex) {
     const row = Math.floor(gridIndex / SUDOKU_SUBGRID_SIZE) * SUDOKU_SUBGRID_SIZE
     const column = (gridIndex % SUDOKU_SUBGRID_SIZE) * SUDOKU_SUBGRID_SIZE
@@ -57,7 +59,9 @@ function checkRowValidity(rowPos, numToCheck, sudokuPuzzle) {
 }
 
 // return false if have duplicates, true otherwise
-function checkSubGridValidity(gridIndex, numToCheck, sudokuPuzzle) {
+function checkSubGridValidity(rowPos, colPos, numToCheck, sudokuPuzzle) {
+    const gridIndex = getGridIndexFromCoordinate(rowPos, colPos)
+
     const [row, col] = getRowColFromGridIndex(gridIndex)
 
     for (let x = col; x < col + SUDOKU_SUBGRID_SIZE; x++) {
@@ -74,28 +78,18 @@ function checkSubGridValidity(gridIndex, numToCheck, sudokuPuzzle) {
 }
 
 function checkCellValidity(rowPos, colPos, numToCheck, sudokuPuzzle) {
-    // if (sudokuPuzzle[rowPos][colPos] === EMPTY_CELL) {
-    //     return true
-    // }
-
-    // const coordinateAsString = getCoordinateAsString(rowPos, colPos)
-    // if (originalValues.has(coordinateAsString)) {
-    //     return true
-    // }
-
-    const gridIndex = getGridIndexFromCoordinate(rowPos, colPos)
-
     const colIsValid = checkColValidity(colPos, numToCheck, sudokuPuzzle)
     if (!colIsValid) {
         return false
     }
-
+    
     const rowIsValid = checkRowValidity(rowPos, numToCheck, sudokuPuzzle)
     if (!rowIsValid) {
         return false
     }
+    
 
-    const gridIsValid = checkSubGridValidity(gridIndex, numToCheck, sudokuPuzzle)
+    const gridIsValid = checkSubGridValidity(rowPos, colPos, numToCheck, sudokuPuzzle)
     if (!gridIsValid) {
         return false
     }
@@ -137,8 +131,14 @@ async function getSudokuPuzzle(filepath) {
     const file = Bun.file(filepath)
 
     const text = await file.text()
-    
-    const sudokuPuzzle = await JSON.parse(text)
+
+    const lines = text.split("\n")
+
+    const sudokuPuzzle = []
+
+    lines.forEach((line) => {
+        sudokuPuzzle.push(line.split(" ").map((num) => parseInt(num)))
+    })
     
     return sudokuPuzzle
 }
@@ -157,6 +157,10 @@ function validateSudokuPuzzle(sudokuPuzzle) {
 
         for (let j = 0; j < row.length; j++) {
             const value = row[j]
+
+            if (isNaN(value)) {
+                return `Value at row ${j} column ${i} is not a number. Each cell value must be between 0 to 9.`
+            }
 
             if (!VALID_NUMBERS.includes(value) && value !== 0) {
                 return "Each cell value in sudoku puzzle must be between 0 to 9. 0 represents empty cells."
@@ -199,6 +203,8 @@ if (sudokuPuzzleIsInvalid) {
     const numOfCellsToPlace = (SUDOKU_SIZE * SUDOKU_SIZE) - originalValues.size
     backtrack(startPosition, numOfCellsPlaced, numOfCellsToPlace, sudokuPuzzle)
 
+    const parsedSolution = parseSudokuAsString(solution)
+
     console.log("Solution\n")
-    console.log(parseSudokuAsString(solution))
+    console.log(parsedSolution)
 }
